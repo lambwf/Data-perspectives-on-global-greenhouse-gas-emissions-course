@@ -9,7 +9,7 @@ output: word_document
 ## At the start of a notebook you need to load all the packages needed for your analysis
 
 library(tidyverse) ## In our case we need Tidyverse
-library(openxlsx) ## And a library to open xlsx files
+library(readxl) ## And a library to open xlsx files
 
 
 ## We also need to get the data.
@@ -18,8 +18,8 @@ library(openxlsx) ## And a library to open xlsx files
 ## To load the data, we need to simply indicate where the file is ("xlsxFile =")
 ## And which sheet should be read ("sheet = ")
 
-data_ghg <- read.xlsx(xlsxFile ='Data/essd_ghg_data_gwp100.xlsx', sheet = 3)
-data_lulucf <- read.xlsx(xlsxFile = 'Data/essd_lulucf_data.xlsx', sheet = 2)
+data_ghg <- read_excel(path ='Data/essd_ghg_data_gwp100.xlsx', sheet = 3)
+data_lulucf <- read_excel(path = 'Data/essd_lulucf_data.xlsx', sheet = 2)
 
 
 ## These files take relatively long to load, so it is best to load them just once

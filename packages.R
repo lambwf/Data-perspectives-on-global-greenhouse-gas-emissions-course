@@ -1,2 +1,3 @@
 install.packages('tidyverse')
-install.packages('openxslx')
+install.packages('readxl')
+install.packages('rmarkdown')
