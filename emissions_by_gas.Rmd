@@ -1,0 +1,131 @@
+---
+title: "emissions_by_gas"
+author: "William F. Lamb"
+output: word_document
+---
+
+```{r setup, include=FALSE} 
+
+## At the start of a notebook you need to load all the packages needed for your analysis
+
+library(tidyverse) ## In our case we need Tidyverse
+library(openxlsx) ## And a library to open xlsx files
+
+
+## We also need to get the data.
+## There are two sheets already in the data folder
+## These are sourced from a file online (https://zenodo.org/record/6483002)
+## To load the data, we need to simply indicate where the file is ("xlsxFile =")
+## And which sheet should be read ("sheet = ")
+
+data_ghg <- read.xlsx(xlsxFile ='Data/essd_ghg_data_gwp100.xlsx', sheet = 3)
+data_lulucf <- read.xlsx(xlsxFile = 'Data/essd_lulucf_data.xlsx', sheet = 2)
+
+
+## These files take relatively long to load, so it is best to load them just once
+## We can then move to another chunk for the rest of the analysis
+## But be careful not to overwrite these data frames, otherwise you have to come back here and load them again
+
+```
+
+```{r group_and_join}
+
+## To plot total GHG emissions, we need to merge the two datasets
+## This is one of the most common things you have to do in data coding
+## But first I would aggregate both datasets into global totals, then join them together
+## We do this by "grouping" and "summarising" the data
+
+plot_data_gases <- data_ghg %>%       # create a new variable called "data_gases", copied from "data_ghg"
+  group_by(year) %>%                  # choose "years" as our grouping variable
+  summarise(CO2=sum(CO2,na.rm=TRUE),  # sum up the CO2 column by years, ignoring any missing values
+            CH4=sum(CH4,na.rm=TRUE),  # sum up the CH4 column by years, ...
+            N2O=sum(N2O,na.rm=TRUE),  # etc.
+            Fgas=sum(Fgas,na.rm=TRUE))
+
+# Note that "summarise" drops any other columns in the dataframe that were not grouped or summarised
+
+
+## Now we want to do the same for the LULUCF data
+## In this dataset we only want the "mean" column
+
+plot_data_lulucf <- data_lulucf %>% 
+  group_by(year) %>% 
+  summarise(CO2_LULUCF=sum(mean,na.rm=TRUE)) # sum up the mean column by years, but rename it to "CO2_LULUCF"
+
+
+## Now we can join the two datasets together
+## Here we use a "left_join"
+## This function takes all rows from the data frame we specify as "left" (the first data frame)
+## It then matches these rows to the data frame we specify as "right" (the second data frame)
+## If there are no matches it returns NA in that row
+## If there are additional rows in the "right" data frame, they are dropped
+## We need to specify a matching column, to merge the data frames, here we use "year"
+
+plot_data_gases <- left_join(plot_data_gases,plot_data_lulucf,by="year")
+
+
+## Notice that only the years 1970-2019 are taken from "data_lulucf"? The rest are not copied over
+## This is what we want, but one could also use a "full_join" to keep all available rows in both frames
+
+```
+
+
+```{r gather}
+
+## All our data is now in a single data frame
+## Now we need to "gather" it into a long format
+## Many functions in R expect data to be in a long format, especially plot functions
+## Long format is when all numerical values are in a single column
+
+plot_data_gases <- gather(plot_data_gases,key="gas",value="total_GHG_emissions",CO2:CO2_LULUCF)
+
+
+## "Key" defines the name of the column that will now take the gathered column titles as it's values
+## In our case we call it "gas" because it will contain "CO2", "CH4", etc...
+## "Value" defines the name of the column that will take all the number values
+## And the last argument ("CO2:CO2_LULUCF") defines the range of columns that are to be gathered
+
+```
+
+```{r plot}
+
+## Now we can plot!
+## We will use the ggplot function from tidyverse, which is good for layering up components of a graphic
+
+## To use it, we need to define the aesthetics. 
+## Aesthetics map the variables in your dataset to the elements that you can see on a plot
+## We define them using the "aes()" function
+## You can use aes() to define position (x or y axis), fill color, size, and other types of plot elements
+## Here we define the x axis as "year", the y axis as "total_GHG_emissions", and the fill color as "gas"
+
+## These variables are then passed into a geometric object ("geom"), which are the marks on the plot
+## We want to show an area plot, so we use "geom_area()"
+## There are many other geom functions available to use: https://ggplot2.tidyverse.org/reference/
+
+ggplot(plot_data_gases,aes(x=year,y=total_GHG_emissions,fill=gas)) +
+  geom_area()
+
+
+```
+
+```{r nicer_plot}
+
+## Now we might want to make this plot looks nicer
+## Here are some examples of things that I would tweak
+## As a general rule, simple and clean figures are usually best
+
+plot_data_gases <- plot_data_gases %>% 
+  filter(year!=2020) %>%                              ## filter the dataset to remove the year 2020
+  mutate(total_GHG_emissions=total_GHG_emissions/1e9) ## convert tons into Gigatons (Gt)
+
+
+ggplot(plot_data_gases,aes(x=year,y=total_GHG_emissions,fill=gas)) +
+  geom_area(color="#636363") +              ## Define a colour (grey) to outline each area 
+  ylab("Total GHG emissions (GtCO2eq)") +   ## replace the label on the y axis
+  theme_bw() +                              ## Use my favourite "black/white" theme 
+  scale_fill_brewer(palette="Set2") +       ## Use my favourite color scale from https://colorbrewer2.org
+  theme(axis.title.x = element_blank()) +   ## Remove the x axis label (years is obvious)
+  ggtitle("Total anthropogenic GHG emissions continue to grow")
+
+
+```
